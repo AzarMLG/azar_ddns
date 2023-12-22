@@ -2,8 +2,26 @@
 
 echo "Started azar_ddns script"
 
+
+if [ -z "$azar_ddns_link" ]; then
+    echo "Error: azar_ddns_link environment variable is not set."
+    exit 1
+fi
+if [ -z "$azar_ddns_token" ]; then
+    echo "Error: azar_ddns_token environment variable is not set."
+    exit 1
+fi
+if [ -z "$azar_ddns_fqdn" ]; then
+    echo "Error: azar_ddns_fqdn environment variable is not set."
+    exit 1
+fi
+
+link=$azar_ddns_link
+token=$azar_ddns_token
+fqdn=$azar_ddns_fqdn
+
 ipv6=$(ip -6 addr show dev enp6s0 | grep -m 1 -oP 'inet6 \K[0-9a-fA-F:]+/[0-9]+ scope global (?!temporary|deprecated)' | awk -F"/" '{print $1}')
-dns_aaaa=$(dig aaaa rs.azar.lol +short)
+dns_aaaa=$(dig aaaa $fqdn +short)
 echo "host ipv6 address is $ipv6"
 echo "dns aaaa record is $dns_aaaa"
 
@@ -11,6 +29,5 @@ if [[ "$ipv6" == "$dns_aaaa" ]]; then
     echo "no ipv6 address change detected, exiting..."
     exit 0
 fi
-
 
 
