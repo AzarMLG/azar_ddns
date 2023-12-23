@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import configparser
 import subprocess
+import requests
 
 config_path : str = "./azar_ddns.ini"
 
@@ -21,14 +22,29 @@ def get_dns_record(name):
     command = f"dig aaaa {name} +short"
     return  get_shell_command_output(command)
 
-def update_ddns(ipv6, token, name):
-    return
+def update_ddns(ipv6, token, name, zone_id, account_id):
+    url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{account_id}"
+
+    payload = {
+    "content": ipv6,
+    "name": name,
+    "proxied": False,
+    "type": "AAAA",
+    "ttl": 1
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "X-Auth-Email": token
+    }
+
+    response = requests.request("PUT", url, json=payload, headers=headers)
+    print(response.text)
+    
 
 if __name__ == "__main__":
     config_data = read_config()
     
     link = config_data['link']
-    token = config_data['token']
     name = config_data['name']
     
     ipv6 = get_ipv6(link)
@@ -40,6 +56,9 @@ if __name__ == "__main__":
         print("No ddns update required. Exiting...")
         exit(0)
     else:
-        update_ddns()
+        token = config_data['token']
+        zone_id = config_data['zone_id']
+        account_id = config_data['account_id']
+        update_ddns(ipv6, token, name, zone_id, account_id)
+        print(f"ddns updated {dns} >> {ipv6}")
         
-    
