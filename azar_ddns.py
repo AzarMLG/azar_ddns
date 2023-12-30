@@ -27,6 +27,9 @@ def get_ipv6(link):
     elif current_os == "Darwin":
         command = "ifconfig " + link + " | awk '/inet6/{print $2}' | grep -m 1 -v 'fe80::'"
         return get_shell_command_output(command)
+    else:
+        raise NotImplementedError(f"Unsupported operating system: {current_os}")
+
         
 def get_ipv6_darwin(link):
     return get_ipv6(link)
