@@ -2,9 +2,15 @@
 import configparser
 import subprocess
 import requests
+import platform
+import ipaddress
+
+current_os : str = platform.system()
+supported_os : str = ["Linux", "Darwin"]
 
 config_path : str = "./azar_ddns.ini"
 
+debug_turn_off_dns_update : bool = True # if debuging can set this to True to not mess with dns
 
 def read_config():
     config = configparser.ConfigParser()
@@ -15,8 +21,15 @@ def get_shell_command_output(command):
     return subprocess.check_output(command, shell=True, executable="/bin/bash").decode().strip()
 
 def get_ipv6(link):
-    command = "ip -6 addr show dev " + link + " | grep -m 1 -oP 'inet6 \K[0-9a-fA-F:]+/[0-9]+ scope global (?!temporary|deprecated)' | awk -F""/"" '{print $1}'"
-    return get_shell_command_output(command)
+    if current_os == "Linux":
+        command = "ip -6 addr show dev " + link + " | grep -m 1 -oP 'inet6 \\K[0-9a-fA-F:]+/[0-9]+ scope global (?!temporary|deprecated)' | awk -F""/"" '{print $1}'"
+        return get_shell_command_output(command)
+    elif current_os == "Darwin":
+        command = "ifconfig " + link + " | awk '/inet6/{print $2}' | grep -m 1 -v 'fe80::'"
+        return get_shell_command_output(command)
+        
+def get_ipv6_darwin(link):
+    return get_ipv6(link)
 
 def get_dns_record(name):
     command = f"dig aaaa {name} +short"
@@ -34,31 +47,50 @@ def update_ddns(ipv6, token, name, zone_id, account_id):
     }
     headers = {
         "Content-Type": "application/json",
-        "X-Auth-Email": token
+        "X-Auth-Email": token #TODO fix this
     }
 
     response = requests.request("PUT", url, json=payload, headers=headers)
+    #TODO check if response is succesful, if not return error
     print(response.text)
     
 
 if __name__ == "__main__":
+    if current_os not in supported_os:
+        print(f"Operating system {current_os} is not supported. Exiting...")
+        exit(1)
+
     config_data = read_config()
     
     link = config_data['link']
     name = config_data['name']
     
-    ipv6 = get_ipv6(link)
-    print(f"host address is: {ipv6}")
-    dns = get_dns_record(name)
-    print(f"aaaa dns record is: {dns}")
+    ipv6_str : str = get_ipv6(link)
+    ipv6_address : ipaddress.IPv6Address = None
 
-    if ipv6 == dns:
-        print("No ddns update required. Exiting...")
-        exit(0)
+    if ipv6_str is not None:
+        try:
+            ipv6_address = ipaddress.IPv6Address(ipv6_str)
+        except Exception as e:
+            print(f"Could not convert ipv6_str to valid ipv6 address: {e}")
+            exit(1)
+
+    if ipv6_address.is_global:    
+        print(f"host address is: {ipv6_str}")
+        dns = get_dns_record(name)
+        print(f"aaaa dns record is: {dns}")
+
+        if ipv6_str == dns:
+            print("No ddns update required. Exiting...")
+            exit(0)
+        elif debug_turn_off_dns_update:
+            pass
+        else:
+            token = config_data['token']
+            zone_id = config_data['zone_id']
+            account_id = config_data['account_id']
+            update_ddns(ipv6_str, token, name, zone_id, account_id)
+            print(f"ddns updated {dns} >> {ipv6_str}")
     else:
-        token = config_data['token']
-        zone_id = config_data['zone_id']
-        account_id = config_data['account_id']
-        update_ddns(ipv6, token, name, zone_id, account_id)
-        print(f"ddns updated {dns} >> {ipv6}")
+        print(f"{ipv6_str} is not global ipv6 address. Exiting...")
         
