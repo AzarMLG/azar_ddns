@@ -70,12 +70,15 @@ if __name__ == "__main__":
     ipv6_str : str = get_ipv6(link)
     ipv6_address : ipaddress.IPv6Address = None
 
-    if ipv6_str is not None:
-        try:
-            ipv6_address = ipaddress.IPv6Address(ipv6_str)
-        except Exception as e:
-            print(f"Could not convert ipv6_str to valid ipv6 address: {e}")
-            exit(1)
+    try:
+        ipv6_address = ipaddress.IPv6Address(ipv6_str)
+    except ipaddress.AddressValueError:
+        print(f"ipv6_str = \"{ipv6_str}\"")
+        print("Looks like this host does not have ipv6 address set. Exiting...")
+        exit(1)
+    except Exception as e:
+        print(f"Could not convert {ipv6_str} to valid ipv6 address: {e}. Exiting...")
+        exit(1)
 
     if ipv6_address.is_global:    
         print(f"host address is: {ipv6_str}")
