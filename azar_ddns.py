@@ -27,6 +27,9 @@ def get_ipv6(link):
     elif current_os == "Darwin":
         command = "ifconfig " + link + " | awk '/inet6/{print $2}' | grep -m 1 -v 'fe80::'"
         return get_shell_command_output(command)
+    else:
+        raise NotImplementedError(f"Unsupported operating system: {current_os}")
+
         
 def get_ipv6_darwin(link):
     return get_ipv6(link)
@@ -57,8 +60,7 @@ def update_ddns(ipv6, token, name, zone_id, account_id):
 
 if __name__ == "__main__":
     if current_os not in supported_os:
-        print(f"Operating system {current_os} is not supported. Exiting...")
-        exit(1)
+        raise NotImplementedError(f"Unsupported operating system: {current_os}")
 
     config_data = read_config()
     
